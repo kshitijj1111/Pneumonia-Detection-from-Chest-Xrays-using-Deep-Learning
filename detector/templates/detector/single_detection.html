@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pneumonia Detection</title>
+  {% load static %}
+  <style>
+    :root {
+      --primary: #3498db;
+      --secondary: #2c3e50;
+      --background: #f8f9fa;
+      --light: #ffffff;
+      --accent: #2ecc71;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--background); color: var(--secondary); min-height: 100vh; display: flex; flex-direction: column; }
+
+    header {
+      position: fixed; top: 0; left: 0; right: 0; height: 72px; padding: 20px 40px;
+      background-color: var(--light); box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      font-size: 1.5rem; font-weight: 600; z-index: 1000; display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .timeline-button {
+      font-size: 15px; color: var(--primary); padding: 5px 30px; border: 2px solid var(--primary);
+      border-radius: 50px; background-color: var(--light); cursor: pointer; transition: all 0.5s;
+    }
+
+    .timeline-button:hover { color: var(--light); background-color: var(--primary); border-color: var(--light); transform: scale(1.1); }
+
+    .timeline-container { position: relative; display: inline-block; }
+    .description-box {
+      display: none; position: absolute; top: 110%; left: 50%; transform: translateX(-50%);
+      width: 220px; background: #333; color: white; padding: 8px; font-size: 14px; border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100;
+    }
+    .timeline-container:hover .description-box { display: block; }
+
+    .main { display: flex; flex: 1; height: calc(100vh - 72px); margin-top: 72px; }
+    .sidebar {
+      width: 320px; background-color: var(--light); padding: 30px; display: flex;
+      flex-direction: column; align-items: center; gap: 30px; border-right: 1px solid #ddd;
+      position: sticky; top: 72px; height: calc(100vh - 72px);
+    }
+
+    .sidebar h2 { font-size: 1.6rem; text-align: center; }
+    .input-card { width: 100%; display: flex; flex-direction: column; gap: 20px; }
+    .input-card input[type="file"] {
+      padding: 12px; border: 1px solid #ccc; border-radius: 8px; background-color: #f8f8f8; cursor: pointer;
+    }
+    .input-card img {
+      width: 100%; height: 220px; object-fit: contain; border: 1px solid #ccc;
+      border-radius: 8px; background-color: #fff; padding: 6px;
+    }
+    .input-card button {
+      padding: 12px; background-color: var(--primary); color: white; border: none;
+      border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 500; transition: background-color 0.3s ease;
+    }
+    .input-card button:hover { background-color: #2980b9; }
+
+    .content { flex: 1; padding: 40px; overflow-y: auto; }
+    .placeholder {
+      text-align: center; font-size: 2rem; font-weight: 700; color: transparent;
+      text-shadow: 1px 1px 2px rgba(255,255,255,0.87), -1px -1px 2px rgba(0,0,0,0.5); margin-top: 100px;
+    }
+
+    .result-card { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; animation: fadeIn 0.3s ease-in; }
+    .toggle-button {
+      align-self: flex-end; padding: 8px 16px; background-color: transparent; border: 2px solid var(--primary);
+      border-radius: 20px; color: var(--primary); font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+    }
+    .toggle-button:hover { background-color: var(--primary); color: white; }
+
+    .large-image { width: 100%; border-radius: 12px; border: 1px solid #ccc; background-color: #fff; padding: 10px; }
+    .diagnosis {
+      background: white; padding: 25px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); line-height: 1.6;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 768px) {
+      .main { flex-direction: column; }
+      .sidebar { width: 100%; position: relative; top: 0; height: auto; border-right: none; border-bottom: 1px solid #ddd; }
+      .content { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>Pneumonia Detection System</div>
+  <div class="timeline-container">
+    <a href="{% url 'multi_detection' %}">
+      <button class="timeline-button">Timeline Detection</button>
+    </a>
+    <div class="description-box">
+      This feature lets you view pneumonia progression over time.
+    </div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <h2>Upload X-ray</h2>
+    <div class="input-card">
+      <input type="file" accept="image/*" id="imageInput" />
+      <img id="imagePreview" src="{% static 'images/lung.jpg' %}" alt="Preview Image" />
+      <button id="detectButton">Detect</button>
+    </div>
+  </div>
+
+  <div class="content" id="resultSection">
+    <div class="placeholder">Upload the X-ray to view the result</div>
+  </div>
+</div>
+
+<script>
+const imageInput = document.getElementById("imageInput");
+const imagePreview = document.getElementById("imagePreview");
+const detectButton = document.getElementById("detectButton");
+const resultSection = document.getElementById("resultSection");
+
+let uploadedFile = null;
+let uploadedURL = null;
+let gradcamData = null;
+let gradcamVisible = false;
+let lastData = null;
+
+imageInput.addEventListener("change", () => {
+  const file = imageInput.files[0];
+  if (!file) return;
+  uploadedFile = file;
+  if (uploadedURL) URL.revokeObjectURL(uploadedURL);
+  uploadedURL = URL.createObjectURL(file);
+  imagePreview.src = uploadedURL;
+});
+
+detectButton.addEventListener("click", async () => {
+  if (!uploadedFile) {
+    resultSection.innerHTML = `<div class="placeholder">Please upload an X-ray image before detection.</div>`;
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("xray_image", uploadedFile);
+
+  detectButton.disabled = true;
+  detectButton.textContent = "Detecting...";
+
+  try {
+    const response = await fetch("{% url 'single_detection' %}", {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    });
+    const data = await response.json();
+    detectButton.disabled = false;
+    detectButton.textContent = "Detect";
+
+    if (data.error) {
+      resultSection.innerHTML = `<div class="placeholder">${data.error}</div>`;
+      return;
+    }
+
+    lastData = data;
+    gradcamData = data.gradcam;
+    gradcamVisible = false;
+    renderDetection();
+  } catch (err) {
+    console.error(err);
+    detectButton.disabled = false;
+    detectButton.textContent = "Detect";
+    resultSection.innerHTML = `<div class="placeholder">Error during detection. Please try again.</div>`;
+  }
+});
+
+function renderDetection() {
+  if (!lastData || !uploadedURL) return;
+
+  resultSection.innerHTML = `
+    <div class="result-card">
+      <div style="position: relative; display: inline-block;">
+        <img id="xrayImg" src="${uploadedURL}" alt="X-ray" class="large-image"/>
+        ${gradcamVisible && gradcamData ? `<img src="data:image/png;base64,${gradcamData}" 
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.5;" />` : ''}
+      </div>
+      ${gradcamData ? `<button id="toggleBtn" class="toggle-button">Toggle Grad-CAM</button>` : ''}
+      <div class="diagnosis">
+        <h3>Diagnosis Report</h3>
+        <p><strong>Status:</strong> ${lastData.status}</p>
+        <p><strong>Confidence:</strong> ${lastData.confidence}%</p>
+        <p><strong>Severity:</strong> ${lastData.severity}</p>
+        <p><strong>Info:</strong> ${lastData.info}</p>
+      </div>
+    </div>
+  `;
+
+  const toggleBtn = document.getElementById("toggleBtn");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      gradcamVisible = !gradcamVisible;
+      renderDetection();
+    });
+  }
+}
+</script>
+
+</body>
+</html>

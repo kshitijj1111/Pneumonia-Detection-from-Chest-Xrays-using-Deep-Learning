@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pneumonia Detection System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #3498db;
+      --secondary: #2c3e50;
+      --background: #f8f9fa;
+      --light: #ffffff;
+      --accent: #2ecc71;
+      --graph-bg: #eef6ff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--background);
+      color: var(--secondary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 72px;
+      padding: 20px 40px;
+      background-color: var(--light);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      font-size: 1.5rem;
+      font-weight: 600;
+      z-index: 1000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .timeline-button {
+      font-size: 15px;
+      color: var(--primary);
+      padding: 5px 30px;
+      border: 2px solid var(--primary);
+      border-radius: 50px;
+      background-color: var(--light);
+      cursor: pointer;
+      transition: all 0.5s;
+    }
+
+    .timeline-button:hover {
+      color: var(--light);
+      background-color: var(--primary);
+      border-color: var(--light);
+      transform: scale(1.1);
+    }
+
+    .timeline-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    .description-box {
+      display: none;
+      position: absolute;
+      top: 110%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 220px;
+      background: #333;
+      color: white;
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+    }
+
+    .timeline-container:hover .description-box {
+      display: block;
+    }
+
+    /* Upload Section */
+    .upload-section {
+      margin-top: 100px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .upload-container {
+      display: inline-block;
+      position: relative;
+    }
+
+    .upload-label {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 120px;
+      height: 120px;
+      border: 2px dashed var(--primary);
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 40px;
+      color: var(--primary);
+      position: relative;
+      transition: background 0.3s;
+    }
+
+    .upload-label:hover {
+      background-color: rgba(52, 152, 219, 0.1);
+    }
+
+    .upload-label span {
+      font-size: 14px;
+      margin-top: 8px;
+      color: var(--secondary);
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    .upload-tooltip {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 130%;
+      transform: translateY(-50%);
+      width: 260px;
+      background: #333;
+      color: white;
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+      text-align: left;
+    }
+
+    .upload-container:hover .upload-tooltip {
+      display: block;
+    }
+
+    /* Carousel */
+    .carousel {
+      display: flex;
+      overflow-x: auto;
+      gap: 20px;
+      padding: 20px;
+      scroll-behavior: smooth;
+    }
+
+    .carousel::-webkit-scrollbar {
+      height: 8px;
+    }
+
+    .carousel::-webkit-scrollbar-thumb {
+      background: var(--primary);
+      border-radius: 4px;
+    }
+
+    .image-container {
+      flex: 0 0 auto;
+      text-align: center;
+      transition: transform 0.3s;
+    }
+
+    .image-container:hover {
+      transform: scale(1.05);
+    }
+
+    .image-container img {
+      width: 200px;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid var(--primary);
+    }
+
+    .image-label {
+      margin-top: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--secondary);
+    }
+
+    /* Generate Button */
+    .generate-btn {
+      margin: 20px auto;
+      display: block;
+      padding: 12px 24px;
+      font-size: 16px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .generate-btn:hover {
+      background: #2980b9;
+    }
+
+    /* Graph Section */
+    .graph-section {
+      max-width: 1500px;
+      margin: 40px auto;
+      text-align: center;
+      background: var(--graph-bg);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .graph-section canvas {
+      max-height: 400px;
+    }
+
+    .report {
+      margin-top: 20px;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+      .image-container img {
+        width: 150px;
+        height: 150px;
+      }
+      .carousel {
+        padding: 10px;
+      }
+      .upload-label {
+        width: 100px;
+        height: 100px;
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div>Pneumonia Detection System</div>
+    <div class="timeline-container">
+      <a href="{% url 'single_detection' %}">
+        <button class="timeline-button">Pneumonia Detection</button>
+      </a>
+      <div class="description-box">
+        This feature lets you know if you have Pneumonia or not.
+      </div>
+    </div>
+  </header>
+
+  <form id="timeline-form" method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="upload-section">
+      <div class="upload-container">
+        <label for="file-input" class="upload-label">+
+          <span>Upload Images</span>
+        </label>
+        <div class="upload-tooltip">
+          Please upload the images according to the date, oldest first
+        </div>
+        <input type="file" id="file-input" name="xrays" multiple accept="image/*">
+      </div>
+    </div>
+
+    <div class="carousel" id="image-carousel"></div>
+
+    <button type="button" class="generate-btn" id="generate-btn">Generate Analysis</button>
+
+    <div id="hidden-inputs"></div>
+  </form>
+
+  <div class="graph-section" id="graph-section" style="display: none;">
+    <canvas id="lineChart"></canvas>
+    <div class="report" id="report"></div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('file-input');
+    const carousel = document.getElementById('image-carousel');
+    const hiddenInputs = document.getElementById('hidden-inputs');
+    const generateBtn = document.getElementById('generate-btn');
+    const graphSection = document.getElementById('graph-section');
+    const report = document.getElementById('report');
+    let imageCount = 0;
+    let filesList = [];
+    let chartInstance = null;
+
+    fileInput.addEventListener('change', (event) => {
+      const files = event.target.files;
+      Array.from(files).forEach((file) => {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imageCount++;
+          const container = document.createElement('div');
+          container.classList.add('image-container');
+
+          const img = document.createElement('img');
+          img.src = e.target.result;
+
+          const label = document.createElement('div');
+          label.classList.add('image-label');
+          label.textContent = `Image ${imageCount}`;
+
+          const dateInput = document.createElement('input');
+          dateInput.type = 'date';
+          dateInput.required = true;
+          dateInput.style.marginTop = '8px';
+          dateInput.style.padding = '6px';
+          dateInput.style.border = '1px solid #ccc';
+          dateInput.style.borderRadius = '6px';
+          dateInput.style.fontSize = '13px';
+
+          filesList.push({ file, dateInput });
+
+          container.appendChild(img);
+          container.appendChild(label);
+          container.appendChild(dateInput);
+          carousel.appendChild(container);
+        };
+        reader.readAsDataURL(file);
+      });
+      fileInput.value = "";
+    });
+
+    generateBtn.addEventListener('click', async () => {
+      const validPairs = filesList.filter(pair => pair.dateInput.value.trim() !== '');
+      if (validPairs.length < 2) {
+        alert("⚠️ Please select dates for at least 2 uploaded images.");
+        return;
+      }
+
+      const formData = new FormData();
+      validPairs.forEach(pair => {
+        formData.append('xray_images', pair.file);
+        formData.append('xray_dates', pair.dateInput.value);
+      });
+
+      generateBtn.disabled = true;
+      generateBtn.textContent = "Analyzing...";
+
+      try {
+        const response = await fetch("{% url 'multi_detection' %}", {
+          method: "POST",
+          body: formData,
+          headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        });
+
+        const data = await response.json();
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Generate Analysis";
+
+        const dates = data.dates;
+        const infectionRates = data.infection_rates;
+
+        graphSection.style.display = 'block';
+        if (chartInstance) chartInstance.destroy();
+
+        const ctx = document.getElementById('lineChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: dates,
+            datasets: [{
+              label: 'Pneumonia Progression',
+              data: infectionRates,
+              borderColor: '#3498db',
+              backgroundColor: 'rgba(52, 152, 219, 0.2)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+
+        const trend = infectionRates[infectionRates.length - 1] > infectionRates[0] ? "increased 📈" : "decreased 📉";
+        report.innerHTML = `<strong>Report:</strong> The infection has <strong>${trend}</strong> over time.`;
+
+      } catch (err) {
+        alert("❌ Error during analysis. Please try again.");
+        console.error(err);
+        generateBtn.disabled = false;
+        generateBtn.textContent = "Generate Analysis";
+      }
+    });
+  </script>
+</body>
+
+</html>
